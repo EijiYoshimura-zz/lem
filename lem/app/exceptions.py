@@ -1,4 +1,7 @@
-from exception import Exception
+# from exception import Exception
 
-class DepartmentIsInactive(Exception)
+class DepartmentIsInactive(Exception):
+    pass
+
+class InvalidParameters(Exception):
     pass
