@@ -8,6 +8,36 @@ import re
 
 
 def department_view(request):
+    """/app/department/
+    API RESTFUL for department management
+    Accepts only POST requests.
+    request.body should be in JSON format:
+    {
+	    "action": "",
+	    "id": "",
+	    "name": "", 
+    }
+
+    action - REQUIRED
+        - list - return a list of departments that match parameters
+            - id            - OPTIONAL - if provided, it will ignore all other parameters and list the department with id.
+            - name          - OPTIONAL - will find any department that matches the string sequence (SQL LIKE). It is insensitive case.
+        
+        - add - create a new department registry. it will be set as active by default
+            - name          - REQUIRED - String(200)
+        
+        - set_active - sets the employee active
+            - id - REQUIRED
+
+        - set_inactive - sets the employee inactive
+            - id - REQUIRED
+
+        - edit - allows to edit name, email and department from employee. Can inform only the field to be edited
+            - id            - REQUIRED - employee.id
+            - name          - OPTIONAL
+            - email         - OPTIONAL
+            - department_id - OPTIONAL
+    """    
     if request.method == 'GET':
         return HttpResponseForbidden('GET request not allowed')
 
