@@ -6,7 +6,7 @@ from ..exceptions import DepartmentIsInactive
 
 class Employee(Person):
     department = dbmodels.ForeignKey(Department, on_delete=dbmodels.CASCADE, blank=True, null=True)
-    active = dbmodels.BooleanField(default=False)
+    active = dbmodels.BooleanField(default=True)
 
     def __str__(self):
         return str(self.id) + ' - ' + self.name

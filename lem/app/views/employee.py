@@ -27,7 +27,7 @@ def employee_view(request):
             - name          - OPTIONAL - will find any employee that matches the string sequence (SQL LIKE). It is insensitive case.
             - department_id - OPTIONAL - will list all employees for the department
         
-        - add - create a new employee registry 
+        - add - create a new employee registry. it will be set as active by default
             - name          - REQUIRED - String(200)
             - email         - REQUIRED - String(200) - UNIQUE
             - department_id - OPTIONAL - integer - foreign key to Department
@@ -38,7 +38,11 @@ def employee_view(request):
         - set_inactive - sets the employee inactive
             - id - REQUIRED
 
-        - edit -  
+        - edit - allows to edit name, email and department from employee. Can inform only the field to be edited
+            - id            - REQUIRED - employee.id
+            - name          - OPTIONAL
+            - email         - OPTIONAL
+            - department_id - OPTIONAL
     """
     if request.method == 'GET':
         return HttpResponseForbidden('GET request not allowed')
