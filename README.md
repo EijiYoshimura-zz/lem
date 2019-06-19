@@ -44,7 +44,8 @@
         http://localhost:8000/app/department
     ```
     
-    ```/app/employee/
+    ```
+    /app/employee/
     API RESTFUL for employee management
 
     GET - return a list of employees that match parameters
@@ -82,4 +83,33 @@
         - department_id - OPTIONAL
         - active        - OPTIONAL
 
+    ```
+    
+    ```
+    /app/department/
+    API RESTFUL for department management
+
+    GET - return a list of departments that match parameters
+        /app/department/                - list all departments
+        /app/department/?id=00          - list department for provided id.
+        /app/department/?name=xxxxx     - list all departments where name matches the string sequence (SQL LIKE). It is insensitive case.
+        ?show_employees=True            - if true, will list all employees names for each department
+
+    POST - create a new department registry. it will be set as active by default
+        request.body should be in JSON format:
+        {
+            "name": "", 
+        } 
+        - name          - REQUIRED - String(200)
+        
+    PUT - allows to edit name and if it is active. 
+        request.body should be in JSON format:
+        {
+            "id": "",
+            "name": "",
+            "active": "" 
+        } 
+        - id            - REQUIRED - employee.id
+        - name          - OPTIONAL
+        - active        - OPTIONAL
     ```
