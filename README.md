@@ -44,7 +44,7 @@
         http://localhost:8000/app/department
     ```
     
-        ```/app/employee/
+    ```/app/employee/
     API RESTFUL for employee management
 
     GET - return a list of employees that match parameters
