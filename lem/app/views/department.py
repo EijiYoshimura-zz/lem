@@ -1,8 +1,8 @@
 from django.core import serializers
 from django.db import IntegrityError
 from django.http import HttpResponse, JsonResponse, HttpResponseNotFound, HttpResponseBadRequest, HttpResponseForbidden
-from ..models.employee import Employee
-from ..models.department import Department
+from app.models.employee import Employee
+from app.models.department import Department
 import json
 import re
 
@@ -10,47 +10,39 @@ import re
 def department_view(request):
     """/app/department/
     API RESTFUL for department management
-    Accepts only POST requests.
-    request.body should be in JSON format:
-    {
-	    "action": "",
-	    "id": "",
-	    "name": "", 
-    }
 
-    action - REQUIRED
-        - list - return a list of departments that match parameters
-            - id            - OPTIONAL - if provided, it will ignore all other parameters and list the department with id.
-            - name          - OPTIONAL - will find any department that matches the string sequence (SQL LIKE). It is insensitive case.
+    GET - return a list of departments that match parameters
+        /app/department/                - list all departments
+        /app/department/?id=00          - list department for provided id.
+        /app/department/?name=xxxxx     - list all departments where name matches the string sequence (SQL LIKE). It is insensitive case.
+        ?show_employees=True            - if true, will list all employees names for each department
+
+    POST - create a new department registry. it will be set as active by default
+        request.body should be in JSON format:
+        {
+            "name": "", 
+        } 
+        - name          - REQUIRED - String(200)
         
-        - add - create a new department registry. it will be set as active by default
-            - name          - REQUIRED - String(200)
-        
-        - set_active - sets the employee active
-            - id - REQUIRED
-
-        - set_inactive - sets the employee inactive
-            - id - REQUIRED
-
-        - edit - allows to edit name, email and department from employee. Can inform only the field to be edited
-            - id            - REQUIRED - employee.id
-            - name          - OPTIONAL
-            - email         - OPTIONAL
-            - department_id - OPTIONAL
+    PUT - allows to edit name and if it is active. 
+        request.body should be in JSON format:
+        {
+            "id": "",
+            "name": "",
+            "active": "" 
+        } 
+        - id            - REQUIRED - employee.id
+        - name          - OPTIONAL
+        - active        - OPTIONAL
     """    
+
     if request.method == 'GET':
-        return HttpResponseForbidden('GET request not allowed')
+        parameters = request.GET
 
-    request_body = json.loads(request.body) if request.body else {}
+        id = parameters.get('id')
+        name = parameters.get('name')
+        show_employees = parameters.get('show_employees') == 'True' 
 
-    action = request_body.get('action')
-    id = request_body.get('id')
-    name = request_body.get('name')
-
-    if not action:
-        return HttpResponseBadRequest('"action" parameter is required.')
-
-    if action == 'list':
         if id:
             try:
                 department = Department.objects.get(id=id)
@@ -60,7 +52,7 @@ def department_view(request):
             response = [{
                 'id': department.id,
                 'name': department.name,
-                'active': department.email,
+                'active': department.active,
             }]
 
         elif name:
@@ -83,8 +75,15 @@ def department_view(request):
                         'active', 
                         )
             response = list(query)
+
+        if show_employees:
+            for i in response:
+                i.update(dict(employees=list(Employee.objects.filter(department__id=i['id']).all().values('id', 'name', 'email'))))
         
-    elif action == 'add':
+    elif request.method == 'POST':
+        request_body = json.loads(request.body) if request.body else {}
+
+        name = request_body.get('name')
         if not name:
             return HttpResponseBadRequest('Data missing')
 
@@ -100,24 +99,14 @@ def department_view(request):
             'active': department.active
         }]
 
-    elif action == 'set_inactive' or action == 'set_active':
-        if not id:
-            return HttpResponseBadRequest('id is required.')
 
-        try:
-            department = Department.objects.get(id=id)
-        except Department.DoesNotExist:
-            return HttpResponseNotFound('Department not found.')
+    elif request.method == 'PUT':
+        request_body = json.loads(request.body) if request.body else {}
 
-        department.active = True if action == 'set_active' else False
+        id = request_body.get('id')
+        name = request_body.get('name')
+        active = request_body.get('active') if request_body.get('active') else None
 
-        response = [{
-            'id': department.id,
-            'name': department.name,
-            'active': department.active
-        }]
-
-    elif action == 'edit':
         if not id:
             return HttpResponseBadRequest('id is required.')
 
@@ -127,7 +116,7 @@ def department_view(request):
             return HttpResponseNotFound('Department not found.')
 
         department.name = name or department.name
-
+        department.active = (active == 'True') if active else department.active
         department.save()
 
         response = [{
@@ -137,7 +126,12 @@ def department_view(request):
         }]
 
     else:
-        raise HttpResponseBadRequest('Invalid action')
+        return HttpResponseBadRequest()
 
-    return JsonResponse(response, json_dumps_params={'indent': 2}, safe=False,)
+    return JsonResponse(
+        response, 
+        json_dumps_params={'indent': 2}, 
+        safe=False, 
+        status=(200 if request.method=='GET' else 201)
+    )
 

@@ -1,8 +1,8 @@
 from django.core import serializers
 from django.db import IntegrityError
 from django.http import HttpResponse, JsonResponse, HttpResponseNotFound, HttpResponseBadRequest, HttpResponseForbidden
-from ..models.employee import Employee
-from ..models.department import Department
+from app.models.employee import Employee
+from app.models.department import Department
 import json
 import re
 
@@ -10,55 +10,55 @@ import re
 def employee_view(request):
     """/app/employee/
     API RESTFUL for employee management
-    Accepts only POST requests.
-    request.body should be in JSON format:
-    {
-	    "action": "",
-	    "id": "",
-	    "name": "", 
-	    "email": "",
-	    "department_id": ""
-    }
 
-    action - REQUIRED
-        - list - return a list of employees that match parameters
-            - id            - OPTIONAL - if provided, it will ignore all other parameters and list the employee with id.
-            - email         - OPTIONAL - will return the employee with informed email and ignore all other parameters.
-            - name          - OPTIONAL - will find any employee that matches the string sequence (SQL LIKE). It is insensitive case.
-            - department_id - OPTIONAL - will list all employees for the department
-        
-        - add - create a new employee registry. it will be set as active by default
-            - name          - REQUIRED - String(200)
-            - email         - REQUIRED - String(200) - UNIQUE
-            - department_id - OPTIONAL - integer - foreign key to Department
-        
-        - set_active - sets the employee active
-            - id - REQUIRED
+    GET - return a list of employees that match parameters
+        /app/employee/                  - list all employees
+        /app/employee/?id=00            - list employee for specified id
+        /app/employee/?email=xxx@xx.c   - list employee with informed email
+        /app/employee/?name=xxxx        - list all employees that matches the string sequence (SQL LIKE). It is insensitive case
+        /app/employee/?department_id=00 - list all employees for department
 
-        - set_inactive - sets the employee inactive
-            - id - REQUIRED
+    POST - create a new employee registry. it will be set as active by default
+        request.body should be in JSON format:
+        {
+            "name": "", 
+            "email": "",
+            "department_id": ""
+        }
 
-        - edit - allows to edit name, email and department from employee. Can inform only the field to be edited
-            - id            - REQUIRED - employee.id
-            - name          - OPTIONAL
-            - email         - OPTIONAL
-            - department_id - OPTIONAL
+        - name          - REQUIRED - String(200)
+        - email         - REQUIRED - String(200) - UNIQUE
+        - department_id - OPTIONAL - integer - foreign key to Department
+    
+    PUT - allows to edit name, email, department and if it is active. Inform only the field to be edited
+        request.body should be in JSON format:
+        {
+            "id": "",
+            "name": "", 
+            "email": "",
+            "department_id": "",
+            "active": ""
+        }
+
+        - id            - REQUIRED - employee.id
+        - name          - OPTIONAL
+        - email         - OPTIONAL
+        - department_id - OPTIONAL
+        - active        - OPTIONAL
+
     """
+
+    # if not request.body:
+    #     return HttpResponseBadRequest()
+    
     if request.method == 'GET':
-        return HttpResponseForbidden('GET request not allowed')
+        parameters = request.GET
 
-    request_body = json.loads(request.body) if request.body else {}
+        id = parameters.get('id')
+        name = parameters.get('name')
+        email = parameters.get('email')
+        department_id = parameters.get('department_id')
 
-    action = request_body.get('action')
-    id = request_body.get('id')
-    name = request_body.get('name')
-    email = request_body.get('email')
-    department_id = request_body.get('department_id')
-
-    if not action:
-        return HttpResponseBadRequest('"action" parameter is required.')
-
-    if action == 'list':
         if id or email:
             try:
                 employee = Employee.objects.get(id=id) if id else Employee.objects.get(email=email)
@@ -87,8 +87,8 @@ def employee_view(request):
             if query.count() == 0:
                 return HttpResponseNotFound('Employee not found.')  
 
-            response = list(query)                      
-
+            response = list(query) 
+                
         elif department_id:
             try:
                 department = Department.objects.get(id=department_id)
@@ -118,7 +118,15 @@ def employee_view(request):
                         )
             response = list(query)
         
-    elif action == 'add':
+    elif request.method == 'POST':
+        request_body = json.loads(request.body) if request.body else {}
+
+        id = request_body.get('id')
+        name = request_body.get('name')
+        email = request_body.get('email')
+        department_id = request_body.get('department_id')
+        active = (request_body.get('active') == 'True') if request_body.get('active') else None
+
         if not all([name,email]):
             return HttpResponseBadRequest('Data missing')
 
@@ -153,27 +161,14 @@ def employee_view(request):
             'active': employee.active
         }]
 
-    elif action == 'set_inactive' or action == 'set_active':
-        if not id:
-            return HttpResponseBadRequest('id is required.')
+    elif request.method == 'PUT':
+        request_body = json.loads(request.body) if request.body else {}
+        id = request_body.get('id')
+        name = request_body.get('name')
+        email = request_body.get('email')
+        department_id = request_body.get('department_id')
+        active = request_body.get('active') if request_body.get('active') else None
 
-        try:
-            employee = Employee.objects.get(id=id)
-        except Employee.DoesNotExist:
-            return HttpResponseNotFound('Employee not found.')
-
-        employee.active = True if action == 'set_active' else False
-
-        response = [{
-            'id': employee.id,
-            'name': employee.name,
-            'email': employee.email,
-            'department': employee.department.id if employee.department else None,
-            'department__name': employee.department.name if employee.department else None,
-            'active': employee.active
-        }]
-
-    elif action == 'edit':
         if not id:
             return HttpResponseBadRequest('id is required.')
 
@@ -187,6 +182,7 @@ def employee_view(request):
             employee.name = name or employee.name
             employee.email = email or employee.email
             employee.department = department or employee.department
+            employee.active = (active == 'True') if active else employee.active
 
             employee.save()
 
@@ -209,7 +205,12 @@ def employee_view(request):
         }]
 
     else:
-        return HttpResponseBadRequest('Invalid action')
+        return HttpResponseBadRequest()
 
-    return JsonResponse(response, json_dumps_params={'indent': 2}, safe=False,)
+    return JsonResponse(
+        response, 
+        json_dumps_params={'indent': 2}, 
+        safe=False, 
+        status=(200 if request.method=='GET' else 201)
+    )
 

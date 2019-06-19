@@ -7,5 +7,8 @@ class Employee(Person):
     active = dbmodels.BooleanField(default=True)
 
     def __str__(self):
-        return str(self.id) + ' - ' + self.name
+        return self.name
 
+    def get_info(self):
+        return 'Employee name: {}, email: {}, department: {}' \
+            . format(self.name, self.email, self.department.name)
